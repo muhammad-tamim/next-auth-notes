@@ -1,7 +1,8 @@
 <h1>Next Auth Notes</h1>
 
 - [Installation:](#installation)
-- [Basic Setup:](#basic-setup)
+- [Basic Test Setup:](#basic-test-setup)
+- [Custom Test SignIn Page:](#custom-test-signin-page)
 
 NextAuth.js is a complete open-source authentication solution for Next.js applications. 
 
@@ -10,11 +11,7 @@ NextAuth.js is a complete open-source authentication solution for Next.js applic
 npm i next-auth
 ```
 
-# Basic Setup: 
-
-- Step 1: Install NextAuth:
-  
-
+# Basic Test Setup: 
 
 - Step 2: add api route and authOptions:
 
@@ -39,7 +36,7 @@ const users = [
     {
         id: "1",
         email: "test@gmail.com",
-        password: "test123",
+        password: "test",
     },
 ];
 
@@ -50,7 +47,7 @@ export const authOptions: NextAuthOptions = {
 
             credentials: {
                 email: { label: "Email", type: "email", placeholder: "test@gmail.com" },
-                password: { label: "Password", type: "password", placeholder: "test123" },
+                password: { label: "Password", type: "password", placeholder: "test" },
             },
 
             async authorize(credentials) {
@@ -167,3 +164,164 @@ export default function Buttons() {
 }
 ```
 
+
+# Custom Test SignIn Page:
+
+Everything same as before, just changed this things: 
+
+```ts
+// src/lib/authOptions.ts
+
+import CredentialsProvider from "next-auth/providers/credentials";
+import { NextAuthOptions } from "next-auth";
+
+const users = [
+    {
+        id: "1",
+        email: "test@gmail.com",
+        password: "test",
+    },
+];
+
+export const authOptions: NextAuthOptions = {
+    providers: [
+        CredentialsProvider({
+            name: "Credentials",
+
+            credentials: {
+                email: {},
+                password: {},
+            },
+
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) {
+                    return null;
+                }
+
+                const user = users.find(
+                    (u) => u.email === credentials.email
+                );
+
+                if (!user) {
+                    return null;
+                }
+
+                return user
+            },
+        }),
+    ],
+    pages: {
+        signIn: "/sign-in",
+    },
+
+};
+```
+
+```tsx
+// src/app/sign-in/page.tsx
+
+"use client";
+
+import { signIn } from "next-auth/react";
+import { useState } from "react";
+
+export default function SignInPage() {
+    const [loading, setLoading] = useState(false);
+
+    async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+
+        setLoading(true);
+
+        const form = e.currentTarget;
+
+        const email = form.email.value;
+        const password = form.password.value;
+
+        const result = await signIn("credentials", {
+            email,
+            password,
+            redirect: true,
+            callbackUrl: "/",
+        });
+
+        setLoading(false);
+
+        if (result?.ok) {
+            alert("SignIn successful");
+        } else {
+            alert("Invalid credentials");
+        }
+    }
+
+    return (
+        <div className="flex justify-center mt-20">
+            <form onSubmit={handleSignIn}>
+                <input type="email" name="email" placeholder="test@gmail.com" className="input" />
+                <input type="password" name="password" placeholder="test" className="input" />
+
+                <button type="submit" className="btn" disabled={loading}>
+                    {loading ? "Loading..." : "Login"}
+                </button>
+            </form>
+        </div>
+    );
+}
+```
+
+Note: here our auth system works but we show wrong alert message because When redirect: true, NextAuth immediately redirects the page after SignIn, so result is usually undefined. To fix this we can use manual redirects: 
+
+
+```tsx
+// src/app/sign-in/page.tsx
+
+"use client";
+
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export default function SignInPage() {
+    const [loading, setLoading] = useState(false);
+    const router = useRouter()
+
+    async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+
+        setLoading(true);
+
+        const form = e.currentTarget;
+
+        const email = form.email.value;
+        const password = form.password.value;
+
+        const result = await signIn("credentials", {
+            email,
+            password,
+            redirect: false
+        });
+
+        setLoading(false);
+
+        if (result?.ok) {
+            alert("SignIn successful");
+            router.push('/')
+        } else {
+            alert("Invalid credentials");
+        }
+    }
+
+    return (
+        <div className="flex justify-center mt-20">
+            <form onSubmit={handleSignIn}>
+                <input type="email" name="email" placeholder="test@gmail.com" className="input" />
+                <input type="password" name="password" placeholder="test" className="input" />
+
+                <button type="submit" className="btn" disabled={loading}>
+                    {loading ? "Loading..." : "Login"}
+                </button>
+            </form>
+        </div>
+    );
+}
+```
