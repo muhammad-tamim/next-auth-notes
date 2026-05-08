@@ -3,6 +3,7 @@
 - [Installation:](#installation)
 - [Basic Test Setup:](#basic-test-setup)
 - [Custom Test SignIn Page:](#custom-test-signin-page)
+- [Get user data on client and server:](#get-user-data-on-client-and-server)
 
 NextAuth.js is a complete open-source authentication solution for Next.js applications. 
 
@@ -323,5 +324,63 @@ export default function SignInPage() {
             </form>
         </div>
     );
+}
+```
+
+# Get user data on client and server: 
+
+- client: 
+
+```ts
+// src/components/Buttons.tsx
+
+"use client"
+
+import { useSession, signIn, signOut } from "next-auth/react"
+import React from 'react'
+
+export default function Buttons() {
+    const { data: session } = useSession()
+    return (
+        <div>
+            {session
+                ?
+                <div>
+                    <p className="text-blue-500">Your are signed in by: <span className="font-black">{JSON.stringify(session)}</span></p>
+                    <button onClick={() => signOut()} className="btn btn-error">Sign out</button>
+                </div>
+                :
+                <div>
+                    <p className="text-red-500">Your are Not signed in</p>
+                    <button onClick={() => signIn()} className="btn btn-primary">Sign in</button>
+                </div>
+
+            }
+        </div>
+    )
+}
+```
+
+- server: 
+
+```bash
+// .env.local
+NEXTAUTH_SECRET=supersecretkey
+```
+
+```ts
+// src/app/page.tsx
+import { getServerSession } from "next-auth/next"
+import Buttons from '@/components/Buttons'
+import { authOptions } from "@/lib/authOptions"
+
+export default async function HomePage() {
+  const session = await getServerSession(authOptions)
+  return (
+    <div>HomePage
+      <p>User info on the server: {JSON.stringify(session)}</p>
+      <Buttons></Buttons>
+    </div>
+  )
 }
 ```
